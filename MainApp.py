@@ -1,23 +1,23 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import platform
 import sklearn
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 import pickle
-import os
 
 st.set_page_config(layout="wide")
-st.title(" Residential Energy Consumption Prediction Platform")
+st.title("Residential Energy Consumption Prediction Platform")
 
 # ---------------------------- 3. Loading Libraries and Data -----------------------------------
 st.header("3. Loading Libraries and Data")
 
- 
+# a. Loading Libraries
+st.subheader("3.1 Libraries Loaded")
+
+
 # b. Library Versions
 st.subheader("3.2 Library Versions")
 st.text(f"Python version: {platform.python_version()}")
@@ -53,14 +53,11 @@ if uploaded_file:
     st.line_chart(df['Global_active_power'])
 
     st.subheader("4.6 Outlier Detection")
-    fig, ax = plt.subplots()
-    sns.boxplot(data=df[['Global_active_power']], ax=ax)
-    st.pyplot(fig)
+    # Instead of boxplot, show max/min and quantiles
+    st.write(df['Global_active_power'].describe(percentiles=[.01, .25, .5, .75, .99]))
 
-    st.subheader("4.7 Correlation Heatmap")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.heatmap(df.corr(), annot=True, cmap="coolwarm", ax=ax)
-    st.pyplot(fig)
+    st.subheader("4.7 Correlation Heatmap (Numeric View)")
+    st.write(df.corr().style.background_gradient(cmap='coolwarm'))
 
     # --------------------------- 5. Data Transformation & Preprocessing ---------------------------
     st.header("5. Data Transformation & Preprocessing")
@@ -93,14 +90,6 @@ if uploaded_file:
     preds = model.predict(X_test)
 
     st.subheader("7.2 Model Evaluation")
-    st.metric("Mean Squared Error", f"{mean_squared_error(y_test, preds):.4f}")
-    st.metric("R² Score", f"{r2_score(y_test, preds):.4f}")
-
-    st.subheader("7.3 Actual vs Predicted")
-    result_df = pd.DataFrame({"Actual": y_test.values, "Predicted": preds})
-    st.line_chart(result_df)
-    st.subheader("7.2 Model Evaluation")
-
     mse = mean_squared_error(y_test, preds)
     r2 = r2_score(y_test, preds)
     accuracy_percent = r2 * 100
@@ -108,18 +97,22 @@ if uploaded_file:
     st.metric("Mean Squared Error", f"{mse:.4f}")
     st.metric("R² Score", f"{r2:.4f}")
     st.metric("Model Accuracy", f"{accuracy_percent:.2f}%")
+
+    st.subheader("7.3 Actual vs Predicted")
+    result_df = pd.DataFrame({"Actual": y_test.values, "Predicted": preds})
+    st.line_chart(result_df)
+
+    # Save model
     with open("energy_model.pkl", "wb") as f:
         pickle.dump(model, f)
 
-
-
+    # --------------------------- 8. Prediction Form ---------------------------
     st.subheader("7.4 Test Model with Your Input")
 
     with st.form("prediction_form"):
         st.write("Enter feature values to predict Global Active Power")
 
         col1, col2, col3 = st.columns(3)
-
         with col1:
             global_reactive_power = st.number_input("Global Reactive Power", min_value=0.0, max_value=1.0, value=0.1)
             voltage = st.number_input("Voltage", min_value=100.0, max_value=300.0, value=240.0)
@@ -134,13 +127,9 @@ if uploaded_file:
         submitted = st.form_submit_button("Predict")
 
         if submitted:
-            input_data = pd.DataFrame([[
-                global_reactive_power, voltage, global_intensity,
-                sub_metering_1, sub_metering_2, sub_metering_3, hour
-            ]], columns=[
-                "Global_reactive_power", "Voltage", "Global_intensity",
-                "Sub_metering_1", "Sub_metering_2", "Sub_metering_3", "hour"
-            ])
-
+            input_data = pd.DataFrame([[global_reactive_power, voltage, global_intensity,
+                                        sub_metering_1, sub_metering_2, sub_metering_3, hour]],
+                                      columns=["Global_reactive_power", "Voltage", "Global_intensity",
+                                               "Sub_metering_1", "Sub_metering_2", "Sub_metering_3", "hour"])
             prediction = model.predict(input_data)[0]
             st.success(f"🔌 Predicted Global Active Power: **{prediction:.3f} kW**")
